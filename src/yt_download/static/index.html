@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YT-Download — YouTube 付費帳號高畫質下載器</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div>
+        <h1>YT-Download</h1>
+        <p class="subtitle">支援 YouTube Premium / 頻道會員 Cookies、4K / 1080p Premium、音訊、字幕與播放清單</p>
+      </div>
+      <div class="env-badges" id="envBadges">
+        <span class="badge">檢查環境中...</span>
+      </div>
+    </header>
+
+    <!-- 1. 付費帳號驗證設定 -->
+    <section class="card">
+      <div class="card-header">
+        <h2>1. 付費帳號驗證（YouTube Premium / 頻道會員）</h2>
+        <span id="cookieStatusBadge" class="badge">載入中...</span>
+      </div>
+
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="tab-btn active" data-auth-mode="cookies_file">
+          cookies.txt（最穩定推薦）
+        </button>
+        <button type="button" class="tab-btn" data-auth-mode="browser">
+          瀏覽器自動讀取
+        </button>
+        <button type="button" class="tab-btn" data-auth-mode="none">
+          不登入（公開影片）
+        </button>
+      </div>
+
+      <!-- cookies.txt 面板 -->
+      <div id="panelCookiesFile" class="auth-panel">
+        <p id="cookieStatusMessage" class="hint-text"></p>
+        <div class="cookie-actions">
+          <label class="btn btn-secondary file-label">
+            選擇並上傳 cookies.txt
+            <input type="file" id="cookieFileInput" accept=".txt" hidden />
+          </label>
+          <button type="button" id="togglePasteCookiesBtn" class="btn btn-ghost">貼上文字匯入</button>
+          <button type="button" id="deleteCookiesBtn" class="btn btn-danger-ghost" hidden>清除 Cookies</button>
+        </div>
+
+        <div id="pasteCookiesBox" class="paste-box" hidden>
+          <textarea id="cookieTextArea" rows="5" placeholder="貼上 Netscape 格式的 cookies.txt 內容..."></textarea>
+          <div class="paste-actions">
+            <button type="button" id="saveCookiesTextBtn" class="btn btn-primary">儲存並驗證</button>
+          </div>
+        </div>
+
+        <details class="help-details">
+          <summary>如何安全匯出付費帳號的 cookies.txt？（避開 Windows Chrome 加密限制）</summary>
+          <ol>
+            <li>在 Chrome / Edge 安裝開源擴充功能 <strong>Get cookies.txt LOCALLY</strong>。</li>
+            <li>開啟無痕視窗登入您的 YouTube Premium / 會員帳號（或直接於主視窗開啟 <code>youtube.com</code>）。</li>
+            <li>點選擴充功能圖示 → 按下 <strong>Export</strong> 下載 <code>youtube.com_cookies.txt</code>。</li>
+            <li>點選上方「選擇並上傳 cookies.txt」匯入，檔案只會儲存在您本機專案的 <code>data/cookies.txt</code>。</li>
+          </ol>
+          <p class="hint-text">注意：YouTube 電影租借/購買等受 Widevine DRM 保護的影片無法透過 yt-dlp 解密下載；Premium 高位元率與頻道會員專屬影片則完全支援。</p>
+        </details>
+      </div>
+
+      <!-- 瀏覽器自動讀取面板 -->
+      <div id="panelBrowser" class="auth-panel" hidden>
+        <div class="grid-2">
+          <label class="field">
+            <span>選擇瀏覽器</span>
+            <select id="browserSelect">
+              <option value="firefox">Firefox（Windows 最推薦，無 DPAPI 鎖定）</option>
+              <option value="chrome">Chrome</option>
+              <option value="edge">Microsoft Edge</option>
+              <option value="brave">Brave</option>
+              <option value="opera">Opera</option>
+              <option value="vivaldi">Vivaldi</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>設定檔名稱（選填，預設 Default）</span>
+            <input type="text" id="browserProfileInput" placeholder="例如 Default 或 Profile 1" />
+          </label>
+        </div>
+        <p class="hint-text">
+          提示：Windows 版 Chrome / Edge 若開啟中或啟用 App-Bound Encryption，直接讀取可能失敗；若遇錯誤請改用 Firefox 或切換至「cookies.txt」分頁。
+        </p>
+      </div>
+
+      <!-- 未登入面板 -->
+      <div id="panelNone" class="auth-panel" hidden>
+        <p class="hint-text">以訪客模式下載，僅能存取一般公開影片（無法取得 1080p Premium 或會員專屬影片）。</p>
+      </div>
+    </section>
+
+    <!-- 2. 影片網址與下載設定 -->
+    <section class="card">
+      <div class="card-header">
+        <h2>2. 貼上 YouTube 網址與下載選項</h2>
+      </div>
+
+      <div class="url-row">
+        <input
+          type="url"
+          id="urlInput"
+          placeholder="貼上 YouTube 影片或播放清單網址，例如：https://www.youtube.com/watch?v=3zgm60bXmQk"
+        />
+        <button type="button" id="probeBtn" class="btn btn-secondary">解析資訊</button>
+        <button type="button" id="downloadBtn" class="btn btn-primary">開始下載</button>
+      </div>
+
+      <div id="probeError" class="alert alert-error" hidden></div>
+
+      <!-- 解析預覽卡片 -->
+      <div id="probePreview" class="preview-box" hidden>
+        <img id="previewThumb" class="preview-thumb" alt="影片縮圖" />
+        <div class="preview-meta">
+          <div class="preview-title-row">
+            <h3 id="previewTitle"></h3>
+            <span id="premiumBadge" class="badge badge-gold" hidden>★ 1080p Premium 可用</span>
+          </div>
+          <p id="previewSub" class="hint-text"></p>
+          <div id="previewPlaylistInfo" class="hint-text" hidden></div>
+        </div>
+      </div>
+
+      <div class="options-grid">
+        <label class="field">
+          <span>畫質 / 輸出格式</span>
+          <select id="presetSelect">
+            <option value="best">最高畫質（自動含 4K / 1080p Premium，合併 MP4）</option>
+            <option value="4k">4K 2160p（若無則自動降階，合併 MP4）</option>
+            <option value="1080p">1080p Full HD（優先 1080p Premium 高位元率）</option>
+            <option value="720p">720p HD（省空間 MP4）</option>
+            <option value="audio_mp3">純音訊 MP3（最高音質）</option>
+            <option value="audio_m4a">純音訊 M4A（原音質封裝）</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>指定串流 Format ID（解析後可選，選填）</span>
+          <select id="formatIdSelect">
+            <option value="">自動依上方畫質預設選擇</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="toggles-grid">
+        <!-- 字幕選項 -->
+        <div class="toggle-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="subtitlesCheck" />
+            <span>下載字幕（SRT）</span>
+          </label>
+          <div id="subtitleOptions" class="sub-options" hidden>
+            <label class="checkbox-label small">
+              <input type="checkbox" id="autoSubtitlesCheck" checked />
+              <span>無人工字幕時包含自動產生字幕</span>
+            </label>
+            <label class="checkbox-label small">
+              <input type="checkbox" id="embedSubtitlesCheck" />
+              <span>將字幕內嵌進 MP4 影片</span>
+            </label>
+            <label class="field small">
+              <span>字幕語系（逗號分隔）</span>
+              <input type="text" id="subtitleLangsInput" value="zh-Hant,zh-TW,zh-HK,en" />
+            </label>
+          </div>
+        </div>
+
+        <!-- 播放清單選項 -->
+        <div class="toggle-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="playlistCheck" />
+            <span>下載整份播放清單（Playlist）</span>
+          </label>
+          <div id="playlistOptions" class="sub-options" hidden>
+            <label class="field small">
+              <span>指定集數範圍（選填，留空為全部）</span>
+              <input type="text" id="playlistItemsInput" placeholder="例如：1-5 或 1,3,5" />
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 下載進度 -->
+    <section class="card">
+      <div class="card-header">
+        <h2>3. 下載任務與即時進度</h2>
+      </div>
+      <div id="tasksContainer" class="list-container">
+        <p class="empty-text">尚無下載任務。</p>
+      </div>
+    </section>
+
+    <!-- 4. 已下載檔案 -->
+    <section class="card">
+      <div class="card-header">
+        <h2>4. 已下載檔案（<span id="downloadsDirLabel">downloads/</span>）</h2>
+        <button type="button" id="refreshFilesBtn" class="btn btn-ghost">重新整理</button>
+      </div>
+      <div id="filesContainer" class="list-container">
+        <p class="empty-text">尚無已下載檔案。</p>
+      </div>
+    </section>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

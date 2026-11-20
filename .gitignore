@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+
+# Project runtime data & secrets
+downloads/
+data/
+cookies.txt
+*.cookies.txt
+
+# OS & Editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
