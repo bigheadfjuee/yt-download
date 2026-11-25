@@ -30,7 +30,7 @@ class DownloadOptions:
     preset: QualityPreset = QualityPreset.BEST
     format_id: str | None = None
     output_dir: Path = DOWNLOADS_DIR
-    subtitles: bool = False
+    subtitles: bool = True
     auto_subtitles: bool = True
     subtitle_langs: list[str] = field(default_factory=lambda: list(DEFAULT_SUBTITLE_LANGS))
     embed_subtitles: bool = False
@@ -99,7 +99,11 @@ def build_ydl_opts(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     opts = _base_ydl_opts(options.auth)
-    opts["format"] = _format_selector_for_preset(options.preset, options.format_id)
+    is_subtitles_only = options.preset == QualityPreset.SUBTITLES_ONLY
+    if is_subtitles_only:
+        opts["skip_download"] = True
+    else:
+        opts["format"] = _format_selector_for_preset(options.preset, options.format_id)
     opts["noplaylist"] = not options.allow_playlist
 
     paths: dict[str, str] = {"home": str(output_dir)}
@@ -117,7 +121,9 @@ def build_ydl_opts(
 
     postprocessors: list[dict[str, Any]] = []
 
-    if options.preset == QualityPreset.AUDIO_MP3:
+    if is_subtitles_only:
+        pass
+    elif options.preset == QualityPreset.AUDIO_MP3:
         postprocessors.append(
             {
                 "key": "FFmpegExtractAudio",
@@ -141,8 +147,8 @@ def build_ydl_opts(
         opts["format_sort"] = ["res", "fps", "tbr", "vcodec:h264,vp9", "acodec:aac,m4a"]
         postprocessors.append({"key": "FFmpegMetadata"})
 
-    # 字幕設定（純音訊模式不嵌入字幕，但若勾選仍可下載 .srt）
-    if options.subtitles:
+    # 字幕設定（純音訊與純字幕模式不嵌入字幕，但會下載並轉為 .srt）
+    if options.subtitles or is_subtitles_only:
         langs = options.subtitle_langs or list(DEFAULT_SUBTITLE_LANGS)
         opts["writesubtitles"] = True
         opts["writeautomaticsub"] = bool(options.auto_subtitles)
@@ -154,7 +160,7 @@ def build_ydl_opts(
                 "format": "srt",
             }
         )
-        if options.embed_subtitles and options.preset not in (
+        if options.embed_subtitles and not is_subtitles_only and options.preset not in (
             QualityPreset.AUDIO_MP3,
             QualityPreset.AUDIO_M4A,
         ):
@@ -415,29 +421,48 @@ def download_media(
     finally:
         shutil.rmtree(task_temp_dir, ignore_errors=True)
 
-    # 整理最終實際存在於磁碟的輸出檔案
+    # 整理最終實際存在於磁碟的輸出檔案（包含影片、音訊與字幕檔）
     final_files: list[str] = []
+
+    def _add_existing_file(fp: Any) -> None:
+        if not fp:
+            return
+        fp_str = str(fp)
+        if Path(fp_str).exists() and fp_str not in final_files:
+            final_files.append(fp_str)
+
+    def _collect_entry_files(entry: dict[str, Any]) -> None:
+        for req in entry.get("requested_downloads") or []:
+            _add_existing_file(req.get("filepath"))
+        for moved_path in (entry.get("__files_to_move") or {}).values():
+            _add_existing_file(moved_path)
+        for sub in (entry.get("requested_subtitles") or {}).values():
+            if isinstance(sub, dict):
+                _add_existing_file(sub.get("filepath"))
+
     if info:
         if "entries" in info and info["entries"]:
             for entry in info["entries"]:
-                if not entry:
-                    continue
-                for req in entry.get("requested_downloads") or []:
-                    fp = req.get("filepath")
-                    if fp and Path(fp).exists() and fp not in final_files:
-                        final_files.append(fp)
+                if entry:
+                    _collect_entry_files(entry)
         else:
-            for req in info.get("requested_downloads") or []:
-                fp = req.get("filepath")
-                if fp and Path(fp).exists() and fp not in final_files:
-                    final_files.append(fp)
+            _collect_entry_files(info)
 
     for fp in downloaded_files:
-        if Path(fp).exists() and fp not in final_files:
-            final_files.append(fp)
+        _add_existing_file(fp)
+
+    if options.preset == QualityPreset.SUBTITLES_ONLY and not final_files:
+        langs_display = ", ".join(options.subtitle_langs or DEFAULT_SUBTITLE_LANGS)
+        raise RuntimeError(
+            f"找不到符合語系（{langs_display}）的字幕，請確認影片是否有提供字幕或調整字幕語系設定。"
+        )
 
     # 驗證輸出影片檔的影音長度是否一致（偵測 Proxy 截斷導致畫面提前卡住）
-    if options.preset not in (QualityPreset.AUDIO_MP3, QualityPreset.AUDIO_M4A):
+    if options.preset not in (
+        QualityPreset.AUDIO_MP3,
+        QualityPreset.AUDIO_M4A,
+        QualityPreset.SUBTITLES_ONLY,
+    ):
         for fp in final_files:
             if Path(fp).suffix.lower() in (".mp4", ".mkv", ".webm"):
                 _verify_video_integrity(Path(fp))

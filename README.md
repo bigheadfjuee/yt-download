@@ -9,7 +9,7 @@
   - **瀏覽器自動讀取**：直接讀取本機 Firefox / Chrome / Edge / Brave 的登入狀態。
 - **最高畫質影片**：支援 4K / 1080p Premium（高位元率）自動偵測與標記，透過 FFmpeg 合併為 MP4。
 - **純音訊下載**：支援轉檔最高音質 MP3 與無損封裝 M4A。
-- **字幕下載**：自動下載繁體中文 / 英文（`zh-Hant, zh-TW, zh-HK, en`）SRT 字幕，可選包含自動字幕或內嵌至 MP4。
+- **字幕下載**：預設啟用下載繁體中文 / 英文（`zh-Hant, zh-TW, zh-HK, en`）SRT 字幕，可選包含自動字幕、內嵌至 MP4，或**單獨下載純字幕（SRT）**。
 - **播放清單批次下載**：支援自動建立播放清單子資料夾與指定集數範圍（如 `1-5`）。
 
 ---
@@ -64,11 +64,14 @@ uv run yt-dl info "https://www.youtube.com/watch?v=3zgm60bXmQk" -b firefox
 ### 2. 下載影片 / 音訊 / 字幕 / 播放清單
 
 ```powershell
-# 最高畫質（4K / 1080p Premium）+ 繁中/英文字幕
-uv run yt-dl download "https://www.youtube.com/watch?v=3zgm60bXmQk" -p best -s
+# 最高畫質（4K / 1080p Premium）+ 繁中/英文字幕（預設即會下載字幕）
+uv run yt-dl download "https://www.youtube.com/watch?v=3zgm60bXmQk" -p best
+
+# 僅下載字幕（SRT），不下載影片與音訊
+uv run yt-dl download "https://www.youtube.com/watch?v=3zgm60bXmQk" --subtitles-only
 
 # 指定 1080p（優先 1080p Premium）並內嵌字幕
-uv run yt-dl download "https://www.youtube.com/watch?v=3zgm60bXmQk" -p 1080p -s --embed-subs
+uv run yt-dl download "https://www.youtube.com/watch?v=3zgm60bXmQk" -p 1080p --embed-subs
 
 # 純音訊 MP3
 uv run yt-dl download "https://www.youtube.com/watch?v=3zgm60bXmQk" -p audio_mp3

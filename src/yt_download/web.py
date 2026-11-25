@@ -60,7 +60,7 @@ class DownloadRequest(BaseModel):
     url: str = Field(..., min_length=5)
     preset: QualityPreset = QualityPreset.BEST
     format_id: str | None = None
-    subtitles: bool = False
+    subtitles: bool = True
     auto_subtitles: bool = True
     subtitle_langs: list[str] = Field(default_factory=lambda: list(DEFAULT_SUBTITLE_LANGS))
     embed_subtitles: bool = False
@@ -135,7 +135,11 @@ def _to_auth_config(payload: AuthPayload) -> AuthConfig:
 
 def _run_download_task(task: DownloadTask, options: DownloadOptions) -> None:
     task.status = "downloading"
-    task.stage_text = "正在連線並解析串流..."
+    task.stage_text = (
+        "正在解析並下載字幕..."
+        if options.preset == QualityPreset.SUBTITLES_ONLY
+        else "正在連線並解析串流..."
+    )
 
     def on_progress(info: dict[str, Any]) -> None:
         stage = info.get("stage")
@@ -281,11 +285,14 @@ async def create_download(req: DownloadRequest) -> dict[str, Any]:
                     detail="此網址目前正在下載中，請等待現有任務完成或先取消後再重試。",
                 )
 
+    is_subtitles_only = req.preset == QualityPreset.SUBTITLES_ONLY
+    effective_format_id = None if is_subtitles_only else req.format_id
+
     task_id = uuid.uuid4().hex[:10]
     task = DownloadTask(
         id=task_id,
         url=normalized_url,
-        preset=req.format_id or req.preset.value,
+        preset=effective_format_id or req.preset.value,
     )
     with _tasks_lock:
         _tasks[task_id] = task
@@ -293,12 +300,12 @@ async def create_download(req: DownloadRequest) -> dict[str, Any]:
     options = DownloadOptions(
         url=req.url.strip(),
         preset=req.preset,
-        format_id=req.format_id,
+        format_id=effective_format_id,
         output_dir=DOWNLOADS_DIR,
-        subtitles=req.subtitles,
+        subtitles=True if is_subtitles_only else req.subtitles,
         auto_subtitles=req.auto_subtitles,
         subtitle_langs=req.subtitle_langs or list(DEFAULT_SUBTITLE_LANGS),
-        embed_subtitles=req.embed_subtitles,
+        embed_subtitles=False if is_subtitles_only else req.embed_subtitles,
         allow_playlist=req.allow_playlist,
         playlist_items=req.playlist_items,
         auth=auth,
@@ -319,6 +326,17 @@ async def list_downloads() -> list[dict[str, Any]]:
         items = [t.to_dict() for t in _tasks.values()]
     items.reverse()
     return items
+
+
+@app.delete("/api/downloads")
+async def clear_downloads() -> dict[str, int]:
+    with _tasks_lock:
+        count = len(_tasks)
+        for task in _tasks.values():
+            if task.status in ("queued", "downloading", "postprocessing"):
+                task.cancel_event.set()
+        _tasks.clear()
+    return {"cleared": count}
 
 
 @app.get("/api/downloads/{task_id}")

@@ -61,6 +61,12 @@ function setAuthMode(mode) {
   $("panelNone").hidden = mode !== "none";
 }
 
+function setAuthCardCollapsed(collapsed) {
+  $("authCardBody").hidden = collapsed;
+  $("authCard").classList.toggle("collapsed", collapsed);
+  $("toggleAuthCardBtn").textContent = collapsed ? "展開設定" : "收合";
+}
+
 function renderCookieStatus(cookies) {
   const badge = $("cookieStatusBadge");
   const msg = $("cookieStatusMessage");
@@ -74,11 +80,14 @@ function renderCookieStatus(cookies) {
   if (cookies.has_auth_cookies) {
     badge.classList.add("badge-ok");
     badge.textContent = "cookies.txt 已驗證登入";
+    setAuthCardCollapsed(true);
   } else if (cookies.exists) {
     badge.classList.add("badge-warn");
     badge.textContent = "cookies.txt 未含登入憑證";
+    setAuthCardCollapsed(false);
   } else {
     badge.textContent = "尚未設定 cookies.txt";
+    setAuthCardCollapsed(false);
   }
 }
 
@@ -221,7 +230,31 @@ async function probeUrl() {
   }
 }
 
-async function startDownload() {
+function syncPresetUiState() {
+  const preset = $("presetSelect").value;
+  const isSubOnly = preset === "subtitles_only";
+  const isAudioOnly = preset === "audio_mp3" || preset === "audio_m4a";
+
+  if (isSubOnly) {
+    $("subtitlesCheck").checked = true;
+    $("subtitlesCheck").disabled = true;
+    $("subtitleOptions").hidden = false;
+    $("formatIdSelect").value = "";
+    $("formatIdSelect").disabled = true;
+    $("embedSubtitlesCheck").checked = false;
+    $("embedSubtitlesCheck").disabled = true;
+  } else {
+    $("subtitlesCheck").disabled = false;
+    $("subtitleOptions").hidden = !$("subtitlesCheck").checked;
+    $("formatIdSelect").disabled = false;
+    $("embedSubtitlesCheck").disabled = isAudioOnly;
+    if (isAudioOnly) {
+      $("embedSubtitlesCheck").checked = false;
+    }
+  }
+}
+
+async function startDownload(subtitlesOnly = false) {
   const url = $("urlInput").value.trim();
   if (!url) {
     alert("請先貼上 YouTube 網址");
@@ -234,20 +267,22 @@ async function startDownload() {
     .map((s) => s.trim())
     .filter(Boolean);
 
+  const isSubOnly = subtitlesOnly || $("presetSelect").value === "subtitles_only";
   const payload = {
     url,
-    preset: $("presetSelect").value,
-    format_id: $("formatIdSelect").value || null,
-    subtitles: $("subtitlesCheck").checked,
+    preset: isSubOnly ? "subtitles_only" : $("presetSelect").value,
+    format_id: isSubOnly ? null : $("formatIdSelect").value || null,
+    subtitles: isSubOnly ? true : $("subtitlesCheck").checked,
     auto_subtitles: $("autoSubtitlesCheck").checked,
     subtitle_langs: subtitleLangs,
-    embed_subtitles: $("embedSubtitlesCheck").checked,
+    embed_subtitles: isSubOnly ? false : $("embedSubtitlesCheck").checked,
     allow_playlist: $("playlistCheck").checked,
     playlist_items: $("playlistItemsInput").value.trim() || null,
     auth: getAuthPayload(),
   };
 
   $("downloadBtn").disabled = true;
+  $("downloadSubtitlesBtn").disabled = true;
   try {
     const res = await fetch("/api/downloads", {
       method: "POST",
@@ -264,6 +299,7 @@ async function startDownload() {
     subscribeTask(data.id);
   } finally {
     $("downloadBtn").disabled = false;
+    $("downloadSubtitlesBtn").disabled = false;
   }
 }
 
@@ -360,6 +396,14 @@ window.cancelTask = async function cancelTask(taskId) {
   await fetch(`/api/downloads/${taskId}/cancel`, { method: "POST" });
 };
 
+async function clearAllTasks() {
+  const res = await fetch("/api/downloads", { method: "DELETE" });
+  if (!res.ok) return;
+  state.eventSources.forEach((es) => es.close());
+  state.eventSources.clear();
+  $("tasksContainer").innerHTML = '<p class="empty-text">尚無下載任務。</p>';
+}
+
 async function loadTasks() {
   const res = await fetch("/api/downloads");
   const tasks = await res.json();
@@ -398,6 +442,10 @@ async function loadFiles() {
 }
 
 // Event Listeners
+$("toggleAuthCardBtn").addEventListener("click", () => {
+  setAuthCardCollapsed(!$("authCardBody").hidden);
+});
+
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => setAuthMode(btn.dataset.authMode));
 });
@@ -414,6 +462,7 @@ $("togglePasteCookiesBtn").addEventListener("click", () => {
 $("saveCookiesTextBtn").addEventListener("click", saveCookiesText);
 $("deleteCookiesBtn").addEventListener("click", deleteCookies);
 
+$("presetSelect").addEventListener("change", syncPresetUiState);
 $("subtitlesCheck").addEventListener("change", (e) => {
   $("subtitleOptions").hidden = !e.target.checked;
 });
@@ -422,10 +471,13 @@ $("playlistCheck").addEventListener("change", (e) => {
 });
 
 $("probeBtn").addEventListener("click", probeUrl);
-$("downloadBtn").addEventListener("click", startDownload);
+$("downloadBtn").addEventListener("click", () => startDownload(false));
+$("downloadSubtitlesBtn").addEventListener("click", () => startDownload(true));
+$("clearTasksBtn").addEventListener("click", clearAllTasks);
 $("refreshFilesBtn").addEventListener("click", loadFiles);
 
 // Init
+syncPresetUiState();
 loadStatus();
 loadTasks();
 loadFiles();

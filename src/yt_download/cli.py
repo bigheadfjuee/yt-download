@@ -172,14 +172,15 @@ def download_cmd(
         "--preset",
         "-p",
         case_sensitive=False,
-        help="下載畫質/格式預設：best / 4k / 1080p / 720p / audio_mp3 / audio_m4a",
+        help="下載畫質/格式預設：best / 4k / 1080p / 720p / audio_mp3 / audio_m4a / subtitles_only",
     ),
     format_id: Optional[str] = typer.Option(None, "--format-id", "-f", help="指定特定 format_id（覆蓋 preset）"),
     cookies: Optional[Path] = typer.Option(None, "--cookies", "-c", help="cookies.txt 檔案路徑"),
     browser: Optional[str] = typer.Option(None, "--browser", "-b", help="從瀏覽器讀取登入狀態 (chrome/edge/firefox/brave)"),
     browser_profile: Optional[str] = typer.Option(None, "--browser-profile", help="瀏覽器設定檔名稱"),
     no_auth: bool = typer.Option(False, "--no-auth", help="強制不使用任何帳號 Cookie"),
-    subtitles: bool = typer.Option(False, "--subtitles", "-s", help="下載字幕（繁體中文 / 英文）"),
+    subtitles: bool = typer.Option(True, "--subtitles/--no-subtitles", "-s", help="下載字幕（繁體中文 / 英文，預設啟用）"),
+    subtitles_only: bool = typer.Option(False, "--subtitles-only", help="僅下載字幕（SRT），不下載影片與音訊"),
     no_auto_subs: bool = typer.Option(False, "--no-auto-subs", help="僅下載人工字幕，不下載自動產生字幕"),
     sub_langs: Optional[str] = typer.Option(
         None, "--sub-langs", help="字幕語系（逗號分隔，預設 zh-Hant,zh-TW,zh-HK,en）"
@@ -198,15 +199,19 @@ def download_cmd(
         else list(DEFAULT_SUBTITLE_LANGS)
     )
 
+    is_subtitles_only = subtitles_only or preset == QualityPreset.SUBTITLES_ONLY
+    effective_preset = QualityPreset.SUBTITLES_ONLY if is_subtitles_only else preset
+    effective_format_id = None if is_subtitles_only else format_id
+
     options = DownloadOptions(
         url=url,
-        preset=preset,
-        format_id=format_id,
+        preset=effective_preset,
+        format_id=effective_format_id,
         output_dir=output,
-        subtitles=subtitles,
+        subtitles=True if is_subtitles_only else subtitles,
         auto_subtitles=not no_auto_subs,
         subtitle_langs=langs,
-        embed_subtitles=embed_subs,
+        embed_subtitles=False if is_subtitles_only else embed_subs,
         allow_playlist=playlist,
         playlist_items=playlist_items,
         auth=auth,
@@ -214,7 +219,7 @@ def download_cmd(
 
     console.print(
         f"[cyan]驗證模式：[/cyan]{auth.mode.value}  "
-        f"[cyan]格式：[/cyan]{format_id or preset.value}  "
+        f"[cyan]格式：[/cyan]{effective_format_id or effective_preset.value}  "
         f"[cyan]輸出：[/cyan]{output.resolve()}"
     )
 

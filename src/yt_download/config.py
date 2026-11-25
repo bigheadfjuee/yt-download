@@ -27,6 +27,7 @@ class QualityPreset(str, Enum):
     HD_720P = "720p"
     AUDIO_MP3 = "audio_mp3"
     AUDIO_M4A = "audio_m4a"
+    SUBTITLES_ONLY = "subtitles_only"
 
 
 PRESET_LABELS: dict[QualityPreset, str] = {
@@ -36,6 +37,7 @@ PRESET_LABELS: dict[QualityPreset, str] = {
     QualityPreset.HD_720P: "720p HD（省空間 MP4）",
     QualityPreset.AUDIO_MP3: "純音訊 MP3（最高音質）",
     QualityPreset.AUDIO_M4A: "純音訊 M4A（原音質封裝）",
+    QualityPreset.SUBTITLES_ONLY: "純字幕 SRT（僅下載字幕，不下載影片）",
 }
 
 

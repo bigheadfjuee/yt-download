@@ -19,12 +19,16 @@
     </header>
 
     <!-- 1. 付費帳號驗證設定 -->
-    <section class="card">
+    <section class="card" id="authCard">
       <div class="card-header">
         <h2>1. 付費帳號驗證（YouTube Premium / 頻道會員）</h2>
-        <span id="cookieStatusBadge" class="badge">載入中...</span>
+        <div class="header-actions">
+          <span id="cookieStatusBadge" class="badge">載入中...</span>
+          <button type="button" id="toggleAuthCardBtn" class="btn btn-ghost btn-sm">收合</button>
+        </div>
       </div>
 
+      <div id="authCardBody">
       <div class="auth-tabs" role="tablist">
         <button type="button" class="tab-btn active" data-auth-mode="cookies_file">
           cookies.txt（最穩定推薦）
@@ -96,6 +100,7 @@
       <div id="panelNone" class="auth-panel" hidden>
         <p class="hint-text">以訪客模式下載，僅能存取一般公開影片（無法取得 1080p Premium 或會員專屬影片）。</p>
       </div>
+      </div>
     </section>
 
     <!-- 2. 影片網址與下載設定 -->
@@ -111,6 +116,7 @@
           placeholder="貼上 YouTube 影片或播放清單網址，例如：https://www.youtube.com/watch?v=3zgm60bXmQk"
         />
         <button type="button" id="probeBtn" class="btn btn-secondary">解析資訊</button>
+        <button type="button" id="downloadSubtitlesBtn" class="btn btn-secondary">僅下載字幕</button>
         <button type="button" id="downloadBtn" class="btn btn-primary">開始下載</button>
       </div>
 
@@ -136,9 +142,10 @@
             <option value="best">最高畫質（自動含 4K / 1080p Premium，合併 MP4）</option>
             <option value="4k">4K 2160p（若無則自動降階，合併 MP4）</option>
             <option value="1080p">1080p Full HD（優先 1080p Premium 高位元率）</option>
-            <option value="720p">720p HD（省空間 MP4）</option>
+            <option value="720p" selected>720p HD（省空間 MP4）</option>
             <option value="audio_mp3">純音訊 MP3（最高音質）</option>
             <option value="audio_m4a">純音訊 M4A（原音質封裝）</option>
+            <option value="subtitles_only">純字幕 SRT（僅下載字幕，不下載影片）</option>
           </select>
         </label>
 
@@ -154,10 +161,10 @@
         <!-- 字幕選項 -->
         <div class="toggle-group">
           <label class="checkbox-label">
-            <input type="checkbox" id="subtitlesCheck" />
+            <input type="checkbox" id="subtitlesCheck" checked />
             <span>下載字幕（SRT）</span>
           </label>
-          <div id="subtitleOptions" class="sub-options" hidden>
+          <div id="subtitleOptions" class="sub-options">
             <label class="checkbox-label small">
               <input type="checkbox" id="autoSubtitlesCheck" checked />
               <span>無人工字幕時包含自動產生字幕</span>
@@ -193,6 +200,7 @@
     <section class="card">
       <div class="card-header">
         <h2>3. 下載任務與即時進度</h2>
+        <button type="button" id="clearTasksBtn" class="btn btn-danger-ghost btn-sm">清除所有</button>
       </div>
       <div id="tasksContainer" class="list-container">
         <p class="empty-text">尚無下載任務。</p>
