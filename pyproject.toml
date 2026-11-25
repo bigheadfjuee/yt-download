@@ -3,6 +3,7 @@ name = "yt-download"
 version = "0.1.0"
 description = "YouTube 影片下載工具（支援付費帳號 Cookies、4K/1080p Premium、音訊、字幕、播放清單、Web 介面與 CLI）"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",

@@ -1,5 +1,7 @@
 # YT-Download — YouTube 付費帳號高畫質下載工具
 
+**繁體中文** | [English](README.en.md)
+
 支援透過 **YouTube 付費帳號（YouTube Premium / 頻道會員）** 驗證下載影片、音訊、字幕與播放清單，提供 **本機 Web 介面** 與 **CLI 命令列** 雙模式。
 
 ## 功能特色
@@ -94,3 +96,9 @@ Windows 版 Chrome / Edge 自 v127 起啟用 App-Bound Encryption，容易導致
 > **安全提醒**：`cookies.txt` 與 `data/`、`downloads/` 均已加入 `.gitignore`，請勿將您的 `cookies.txt` 提交至 Git 或分享給他人。
 
 > **DRM 說明**：YouTube Premium（1080p Enhanced Bitrate）、頻道會員專屬影片、年齡限制與私人影片皆可透過付費帳號 Cookies 下載；但受 Widevine DRM 保護的「YouTube 電影租借/購買」內容無法透過 `yt-dlp` 解密下載。
+
+---
+
+## 授權條款（License）
+
+本專案採用 [MIT License](LICENSE) 授權。
