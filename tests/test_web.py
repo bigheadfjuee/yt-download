@@ -34,6 +34,7 @@ def test_index_and_status() -> None:
 def test_download_request_defaults() -> None:
     req = web.DownloadRequest(url="https://www.youtube.com/watch?v=3zgm60bXmQk")
     assert req.subtitles is True
+    assert "en-US" in req.subtitle_langs
 
 
 def test_clear_all_downloads() -> None:

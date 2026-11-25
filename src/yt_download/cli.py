@@ -183,7 +183,7 @@ def download_cmd(
     subtitles_only: bool = typer.Option(False, "--subtitles-only", help="僅下載字幕（SRT），不下載影片與音訊"),
     no_auto_subs: bool = typer.Option(False, "--no-auto-subs", help="僅下載人工字幕，不下載自動產生字幕"),
     sub_langs: Optional[str] = typer.Option(
-        None, "--sub-langs", help="字幕語系（逗號分隔，預設 zh-Hant,zh-TW,zh-HK,en）"
+        None, "--sub-langs", help="字幕語系（逗號分隔，預設 zh-Hant,zh-TW,zh-HK,en,en-US）"
     ),
     embed_subs: bool = typer.Option(False, "--embed-subs", help="將字幕內嵌至 MP4 影片檔"),
     playlist: bool = typer.Option(False, "--playlist", help="允許下載整份播放清單"),

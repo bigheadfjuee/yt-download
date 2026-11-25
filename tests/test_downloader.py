@@ -146,7 +146,8 @@ def test_download_media_subtitles_only_collects_srt_files(tmp_path: Path, monkey
         def extract_info(self, url, download=True):
             return {
                 "title": "Sample",
-                "__files_to_move": {"/tmp/Sample [abc123].zh-Hant.srt": str(srt_file)},
+                "__finaldir": str(tmp_path),
+                "__files_to_move": {"/tmp/Sample [abc123].zh-Hant.srt": None},
                 "requested_subtitles": {"zh-Hant": {"filepath": "/tmp/Sample [abc123].zh-Hant.srt"}},
             }
 

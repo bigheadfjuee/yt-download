@@ -158,6 +158,7 @@ def build_ydl_opts(
             {
                 "key": "FFmpegSubtitlesConvertor",
                 "format": "srt",
+                "when": "before_dl",
             }
         )
         if options.embed_subtitles and not is_subtitles_only and options.preset not in (
@@ -400,9 +401,12 @@ def download_media(
                 }
             )
 
-    temp_root = Path(options.output_dir) / ".tmp"
-    temp_root.mkdir(parents=True, exist_ok=True)
-    task_temp_dir = Path(tempfile.mkdtemp(prefix="ytdl_", dir=str(temp_root)))
+    is_subtitles_only = options.preset == QualityPreset.SUBTITLES_ONLY
+    task_temp_dir: Path | None = None
+    if not is_subtitles_only:
+        temp_root = Path(options.output_dir) / ".tmp"
+        temp_root.mkdir(parents=True, exist_ok=True)
+        task_temp_dir = Path(tempfile.mkdtemp(prefix="ytdl_", dir=str(temp_root)))
 
     opts = build_ydl_opts(
         options,
@@ -419,7 +423,8 @@ def download_media(
     except Exception as exc:
         raise RuntimeError(classify_yt_error(str(exc))) from exc
     finally:
-        shutil.rmtree(task_temp_dir, ignore_errors=True)
+        if task_temp_dir is not None:
+            shutil.rmtree(task_temp_dir, ignore_errors=True)
 
     # 整理最終實際存在於磁碟的輸出檔案（包含影片、音訊與字幕檔）
     final_files: list[str] = []
@@ -432,13 +437,20 @@ def download_media(
             final_files.append(fp_str)
 
     def _collect_entry_files(entry: dict[str, Any]) -> None:
+        finaldir = entry.get("__finaldir")
         for req in entry.get("requested_downloads") or []:
             _add_existing_file(req.get("filepath"))
-        for moved_path in (entry.get("__files_to_move") or {}).values():
-            _add_existing_file(moved_path)
+        for old_path, moved_path in (entry.get("__files_to_move") or {}).items():
+            if moved_path:
+                _add_existing_file(moved_path)
+            elif finaldir and old_path:
+                _add_existing_file(Path(finaldir) / Path(old_path).name)
         for sub in (entry.get("requested_subtitles") or {}).values():
             if isinstance(sub, dict):
-                _add_existing_file(sub.get("filepath"))
+                sub_fp = sub.get("filepath")
+                _add_existing_file(sub_fp)
+                if finaldir and sub_fp:
+                    _add_existing_file(Path(finaldir) / Path(sub_fp).name)
 
     if info:
         if "entries" in info and info["entries"]:

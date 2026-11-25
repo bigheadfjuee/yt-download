@@ -11,7 +11,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 DEFAULT_COOKIES_FILE = DATA_DIR / "cookies.txt"
 
 SUPPORTED_BROWSERS = ("chrome", "edge", "firefox", "brave", "opera", "vivaldi")
-DEFAULT_SUBTITLE_LANGS = ["zh-Hant", "zh-TW", "zh-HK", "en"]
+DEFAULT_SUBTITLE_LANGS = ["zh-Hant", "zh-TW", "zh-HK", "en", "en-US"]
 
 
 class AuthMode(str, Enum):
